@@ -6,7 +6,6 @@ async function fetchYGO(params: Record<string, string | number>): Promise<YGOCar
   try {
     const url = new URL(BASE_URL);
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
-    url.searchParams.set('banlist_info', 'yes');
     const res = await fetch(url.toString());
     const json = (await res.json()) as { data?: YGOCard[]; error?: string };
     return json.data ?? [];
