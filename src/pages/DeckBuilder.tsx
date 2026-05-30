@@ -16,9 +16,11 @@ import { useCardSearch } from '../hooks/useCardSearch';
 import { exportToYdk, getYdkFilename } from '../utils/ydkExporter';
 import { validateDeck } from '../utils/deckValidator';
 import { parseYdk } from '../utils/ydkImporter';
+import { printDeckPdf } from '../utils/deckPdf';
 import { getCardsByIds } from '../api/cards';
 import DeckZone from '../components/deck/DeckZone';
 import DeckStats from '../components/deck/DeckStats';
+import DeckAnalysis from '../components/deck/DeckAnalysis';
 import { MAX_MAIN, MAX_EXTRA, MAX_SIDE } from '../constants/deckRules';
 import { getTypeColor } from '../constants/typeColors';
 import type { CardFilters, DeckZoneType, YGOCard } from '../types/ygo';
@@ -102,6 +104,7 @@ export default function DeckBuilder() {
 
   const [filters, setFilters] = useState<CardFilters>({ fname: '' });
   const [activeTab, setActiveTab] = useState<'search' | 'deck'>('search');
+  const [rightTab, setRightTab] = useState<'mazo' | 'analisis'>('mazo');
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [importing, setImporting] = useState(false);
@@ -140,6 +143,11 @@ export default function DeckBuilder() {
     a.download = getYdkFilename(deck.name);
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function handlePdf() {
+    if (!deck) return;
+    printDeckPdf(deck);
   }
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -251,7 +259,11 @@ export default function DeckBuilder() {
             </button>
             <button onClick={handleExport}
               className="px-4 py-2 text-xs font-body rounded border border-primary/30 hover:border-primary text-text-secondary hover:text-text-main transition-colors duration-200 cursor-pointer">
-              Exportar .ydk
+              ↓ .ydk
+            </button>
+            <button onClick={handlePdf}
+              className="px-4 py-2 text-xs font-body rounded border border-primary2/30 hover:border-primary2 text-text-secondary hover:text-text-main transition-colors duration-200 cursor-pointer">
+              ↓ PDF
             </button>
           </div>
         </div>
@@ -303,12 +315,28 @@ export default function DeckBuilder() {
             )}
           </div>
 
-          {/* Deck zones */}
-          <div className={`space-y-4 ${activeTab !== 'deck' ? 'hidden md:block' : ''}`}>
-            <DeckZone zone="main" cards={deck.main} max={MAX_MAIN} onRemove={tryRemoveCard} />
-            <DeckZone zone="extra" cards={deck.extra} max={MAX_EXTRA} onRemove={tryRemoveCard} />
-            <DeckZone zone="side" cards={deck.side} max={MAX_SIDE} onRemove={tryRemoveCard} />
-            <DeckStats main={deck.main} extra={deck.extra} side={deck.side} />
+          {/* Right panel: Mazo / Análisis tabs */}
+          <div className={activeTab !== 'deck' ? 'hidden md:block' : ''}>
+            {/* Tab switcher */}
+            <div className="flex rounded-lg overflow-hidden border border-primary/20 mb-4">
+              {(['mazo', 'analisis'] as const).map(t => (
+                <button key={t} onClick={() => setRightTab(t)}
+                  className={`flex-1 py-1.5 text-xs font-body transition-colors cursor-pointer capitalize ${rightTab === t ? 'bg-primary/20 text-primary' : 'text-muted hover:text-text-main'}`}>
+                  {t === 'mazo' ? 'Mazo' : '📊 Análisis'}
+                </button>
+              ))}
+            </div>
+
+            {rightTab === 'mazo' ? (
+              <div className="space-y-4">
+                <DeckZone zone="main" cards={deck.main} max={MAX_MAIN} onRemove={tryRemoveCard} />
+                <DeckZone zone="extra" cards={deck.extra} max={MAX_EXTRA} onRemove={tryRemoveCard} />
+                <DeckZone zone="side" cards={deck.side} max={MAX_SIDE} onRemove={tryRemoveCard} />
+                <DeckStats main={deck.main} extra={deck.extra} side={deck.side} />
+              </div>
+            ) : (
+              <DeckAnalysis deck={deck} />
+            )}
           </div>
         </div>
       </div>
