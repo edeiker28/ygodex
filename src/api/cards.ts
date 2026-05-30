@@ -18,7 +18,8 @@ export async function getCards(filters: CardFilters & { num?: number; offset?: n
   const params: Record<string, string | number> = {};
 
   if (filters.fname) params['fname'] = filters.fname;
-  if (filters.type) params['type'] = filters.type;
+  // 'Monster' is our broad category — don't send to API, filter client-side after
+  if (filters.type && filters.type !== 'Monster') params['type'] = filters.type;
   if (filters.attribute) params['attribute'] = filters.attribute;
   if (filters.race) params['race'] = filters.race;
   if (filters.archetype) params['archetype'] = filters.archetype;
@@ -27,6 +28,10 @@ export async function getCards(filters: CardFilters & { num?: number; offset?: n
   if (filters.offset !== undefined) params['offset'] = filters.offset;
 
   let cards = await fetchYGO(params);
+
+  if (filters.type === 'Monster') {
+    cards = cards.filter(c => c.type !== 'Spell Card' && c.type !== 'Trap Card');
+  }
 
   if (filters.atkMin !== undefined) cards = cards.filter(c => (c.atk ?? 0) >= filters.atkMin!);
   if (filters.atkMax !== undefined) cards = cards.filter(c => (c.atk ?? 9999) <= filters.atkMax!);
@@ -43,4 +48,17 @@ export async function getCardById(id: number): Promise<YGOCard | null> {
 
 export async function getAllCards(num = 20, offset = 0): Promise<YGOCard[]> {
   return fetchYGO({ num, offset });
+}
+
+export async function getCardsByIds(ids: number[]): Promise<YGOCard[]> {
+  const uniqueIds = [...new Set(ids)];
+  if (uniqueIds.length === 0) return [];
+  const results: (YGOCard | null)[] = [];
+  // Batch 10 at a time to stay well within rate limit
+  for (let i = 0; i < uniqueIds.length; i += 10) {
+    const batch = uniqueIds.slice(i, i + 10);
+    const batchResults = await Promise.all(batch.map(id => getCardById(id)));
+    results.push(...batchResults);
+  }
+  return results.filter((c): c is YGOCard => c !== null);
 }

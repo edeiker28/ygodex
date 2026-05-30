@@ -9,13 +9,7 @@ interface Props {
 
 function CardSkeleton() {
   return (
-    <div className="rounded-lg overflow-hidden border border-primary/10 bg-surface animate-pulse">
-      <div className="aspect-[421/614] bg-surface2" />
-      <div className="p-2 space-y-1">
-        <div className="h-3 bg-surface2 rounded w-3/4" />
-        <div className="h-4 bg-surface2 rounded w-1/2" />
-      </div>
-    </div>
+    <div className="rounded-xl overflow-hidden border border-primary/10 bg-surface animate-pulse aspect-[421/614]" />
   );
 }
 

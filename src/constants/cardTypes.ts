@@ -29,7 +29,7 @@ export const ALL_TYPES: string[] = [
 ];
 
 export const BASIC_FILTER_CATEGORIES = [
-  { label: 'Monstruo', value: 'Effect Monster' },
+  { label: 'Monstruo', value: 'Monster' },
   { label: 'Magia', value: 'Spell Card' },
   { label: 'Trampa', value: 'Trap Card' },
 ];

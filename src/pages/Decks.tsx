@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useDeckStore } from '../store/deckStore';
+import { parseYdk } from '../utils/ydkImporter';
+import { getCardsByIds } from '../api/cards';
+import type { DeckZoneType } from '../types/ygo';
 
 export default function Decks() {
-  const { decks, createDeck, deleteDeck, setActiveDeck, activeDeckId } = useDeckStore();
+  const { decks, createDeck, deleteDeck, setActiveDeck, activeDeckId, addCard } = useDeckStore();
   const [newName, setNewName] = useState('');
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   function handleCreate(e: React.FormEvent) {
@@ -21,25 +26,77 @@ export default function Decks() {
     }, 50);
   }
 
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const parsed = parseYdk(text);
+      const allIds = [...parsed.main, ...parsed.extra, ...parsed.side];
+      if (allIds.length === 0) return;
+
+      const deckName = file.name.replace(/\.ydk$/i, '') || `Mazo importado`;
+      createDeck(deckName);
+
+      await new Promise(r => setTimeout(r, 60));
+      const { decks: updated } = useDeckStore.getState();
+      const newDeck = updated[updated.length - 1];
+      if (!newDeck) return;
+
+      const fetched = await getCardsByIds(allIds);
+      const byId = new Map(fetched.map(c => [c.id, c]));
+
+      const addSection = (ids: number[], zone: DeckZoneType) => {
+        const counts = new Map<number, number>();
+        for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
+        counts.forEach((count, cardId) => {
+          const card = byId.get(cardId);
+          if (!card) return;
+          for (let i = 0; i < count; i++) addCard(newDeck.id, zone, card);
+        });
+      };
+
+      addSection(parsed.main, 'main');
+      addSection(parsed.extra, 'extra');
+      addSection(parsed.side, 'side');
+
+      navigate(`/decks/${newDeck.id}`);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="font-display text-2xl brand-gradient">Mis Mazos</h1>
       </div>
 
-      <form onSubmit={handleCreate} className="flex gap-3 mb-8">
-        <input
-          type="text"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="Nombre del nuevo mazo..."
-          className="flex-1 px-4 py-2.5 rounded-lg bg-surface border border-primary/20 text-text-main font-body text-sm placeholder-muted focus:outline-none focus:border-primary/60 transition-colors duration-200"
-        />
-        <button type="submit"
-          className="px-6 py-2.5 rounded-lg bg-primary hover:bg-primary2 text-white font-display text-sm tracking-wider transition-colors duration-200 cursor-pointer">
-          Crear
+      <div className="flex gap-3 mb-8 flex-wrap">
+        <form onSubmit={handleCreate} className="flex gap-3 flex-1 min-w-0">
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Nombre del nuevo mazo..."
+            className="flex-1 px-4 py-2.5 rounded-lg bg-surface border border-primary/20 text-text-main font-body text-sm placeholder-muted focus:outline-none focus:border-primary/60 transition-colors duration-200 min-w-0"
+          />
+          <button type="submit"
+            className="px-6 py-2.5 rounded-lg bg-primary hover:bg-primary2 text-white font-display text-sm tracking-wider transition-colors duration-200 cursor-pointer whitespace-nowrap">
+            Crear
+          </button>
+        </form>
+        <input ref={fileInputRef} type="file" accept=".ydk" onChange={handleImportFile} className="hidden" />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={importing}
+          className="px-5 py-2.5 rounded-lg border border-primary/30 hover:border-primary text-text-secondary hover:text-text-main font-body text-sm transition-colors duration-200 cursor-pointer disabled:opacity-50 whitespace-nowrap"
+        >
+          {importing ? 'Importando...' : '↑ Importar .ydk'}
         </button>
-      </form>
+      </div>
 
       {decks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4 text-muted">
