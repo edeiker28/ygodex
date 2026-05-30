@@ -13,24 +13,45 @@ export default function Cards() {
   const deckBuilder = useDeckBuilder(activeDeckId ?? '');
 
   const [filters, setFilters] = useState<CardFilters>({
-    fname: searchParams.get('fname') ?? '',
-    type: '',
-    attribute: '',
-    race: '',
-    archetype: '',
-    level: '',
+    fname:     searchParams.get('fname')     ?? '',
+    type:      searchParams.get('type')      ?? '',
+    attribute: searchParams.get('attribute') ?? '',
+    race:      searchParams.get('race')      ?? '',
+    archetype: searchParams.get('archetype') ?? '',
+    level:     searchParams.get('level')     ?? '',
+    atkMin:    searchParams.get('atkMin')    ? Number(searchParams.get('atkMin'))  : undefined,
+    atkMax:    searchParams.get('atkMax')    ? Number(searchParams.get('atkMax'))  : undefined,
+    defMin:    searchParams.get('defMin')    ? Number(searchParams.get('defMin'))  : undefined,
+    defMax:    searchParams.get('defMax')    ? Number(searchParams.get('defMax'))  : undefined,
+    format:    (searchParams.get('format') as 'tcg' | 'ocg' | 'goat') || undefined,
   });
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(searchParams.get('adv') === '1');
   const [addedId, setAddedId] = useState<number | null>(null);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useCardSearch(filters);
   const cards = data?.pages.flat() ?? [];
 
   function setFilter(key: keyof CardFilters, value: string | number | undefined) {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    if (key === 'fname') {
-      setSearchParams(value ? { fname: String(value) } : {});
-    }
+    const next = { ...filters, [key]: value };
+    setFilters(next);
+    syncToUrl(next, showAdvanced);
+  }
+
+  function syncToUrl(f: CardFilters, adv: boolean) {
+    const p: Record<string, string> = {};
+    if (f.fname)     p['fname']     = f.fname;
+    if (f.type)      p['type']      = f.type;
+    if (f.attribute) p['attribute'] = f.attribute;
+    if (f.race)      p['race']      = f.race;
+    if (f.archetype) p['archetype'] = f.archetype;
+    if (f.level)     p['level']     = f.level;
+    if (f.atkMin != null) p['atkMin'] = String(f.atkMin);
+    if (f.atkMax != null) p['atkMax'] = String(f.atkMax);
+    if (f.defMin != null) p['defMin'] = String(f.defMin);
+    if (f.defMax != null) p['defMax'] = String(f.defMax);
+    if (f.format)    p['format']    = f.format;
+    if (adv)         p['adv']       = '1';
+    setSearchParams(p, { replace: true });
   }
 
   function handleAdd(card: YGOCard) {
@@ -75,7 +96,7 @@ export default function Cards() {
       </div>
 
       <button
-        onClick={() => setShowAdvanced(o => !o)}
+        onClick={() => { const next = !showAdvanced; setShowAdvanced(next); syncToUrl(filters, next); }}
         className="text-xs font-body text-muted hover:text-primary2 transition-colors duration-200 mb-4 cursor-pointer"
       >
         {showAdvanced ? '▲ Ocultar filtros avanzados' : '▼ + Filtros avanzados'}
@@ -134,7 +155,7 @@ export default function Cards() {
             </select>
           </div>
           <div className="flex items-end">
-            <button onClick={() => setFilters({ fname: '' })}
+            <button onClick={() => { const empty: CardFilters = { fname: '' }; setFilters(empty); setSearchParams({}, { replace: true }); }}
               className="w-full px-2 py-1.5 text-xs font-body text-muted border border-primary/15 rounded hover:text-text-main hover:border-primary/30 transition-colors duration-200 cursor-pointer">
               Resetear
             </button>
